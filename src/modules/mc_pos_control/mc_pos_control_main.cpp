@@ -923,23 +923,27 @@ void
 MulticopterPositionControl::limit_altitude()
 {
 	if (_vehicle_land_detected.alt_max > 0.0f) {
-		/* in altitude control, limit setpoint */
-		if (_run_alt_control && _pos_sp(2) <= -_vehicle_land_detected.alt_max) {
-			_pos_sp(2) = -_vehicle_land_detected.alt_max;
+
+		float altitude_above_home = -_pos(2) + _home_pos.z;
+
+		// we are above maximum altitude
+		if (_run_alt_control &&  altitude_above_home > _vehicle_land_detected.alt_max) {
+			_pos_sp(2) = -_vehicle_land_detected.alt_max +  _home_pos.z;
 			return;
 		}
 
-		/* in velocity control mode and want to fly upwards */
+		// we want to fly upwards
 		if (!_run_alt_control && _vel_sp(2) <= 0.0f) {
 
-			/* time to travel to reach zero velocity */
+			// time to reach zero velocity
 			float delta_t = -_vel(2) / _acceleration_z_max_down.get();
 
-		/* predicted position */
-		float pos_z_next = _pos(2) + _vel(2) * delta_t + 0.5f * _acceleration_z_max_down.get() * delta_t *delta_t;
+			// predict position forward
+			float pos_z_next = _pos(2) + _vel(2) * delta_t + 0.5f * _acceleration_z_max_down.get() * delta_t *delta_t;
 
-			if (pos_z_next <= -_vehicle_land_detected.alt_max) {
-				_pos_sp(2) = -_vehicle_land_detected.alt_max;
+			// prevent the vehicle from exceeding maximum altitude
+			if ((-pos_z_next + _home_pos.z) > _vehicle_land_detected.alt_max) {
+				_pos_sp(2) = -_vehicle_land_detected.alt_max + _home_pos.z;
 				_run_alt_control = true;
 				return;
 			}
